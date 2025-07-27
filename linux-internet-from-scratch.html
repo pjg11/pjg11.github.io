@@ -1,0 +1,294 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<link rel="stylesheet" href="/public/style.css">
+<title>How does a Linux machine connect to the internet, really? - pjg1.site</title>
+</head>
+<body>
+<nav>
+<a href="/">pjg1.site</a>
+<a href="/now">Now</a>
+<a href="/contact">Contact</a>
+<a href="/feed.xml">RSS</a>
+</nav>
+<main>
+<h1>How does a Linux machine connect to the internet, really?</h1>
+<p>
+<time datetime="2025-02-09 00:00:00 +0400">9 February 2025</time> •
+<a href="/tags#linux">#linux</a>
+<a href="/tags#recurse">#recurse</a>
+<a href="/tags#networking">#networking</a>
+</p>
+<div class="note">
+<p>This post is written during a batch at the <a href="https://www.recurse.com/scout/click?t=2ac66128b9116e0722d941ebf7e14b5a">Recurse Center</a>, a retreat for programmers.</p>
+</div>
+
+<p>Recently, I was brainstorming networking project ideas, I got curious on what goes behind connecting to the internet, and if I could do it from scratch.</p>
+
+<p>I'm delighted to report that the experiment was successful, and I thought of sharing it here! I've tested this on Ubuntu, but I think it should work on any Linux distribution. If not, <a href="mailto:piya@pjg1.site">let me know</a>.</p>
+
+<ul>
+  <li><a href="#identify-and-disable-existing-configuration">Identify and disable existing configuration</a></li>
+  <li><a href="#additional-setup-for-wireless-interfaces">Additional setup for wireless interfaces</a></li>
+  <li><a href="#setup-network-interface">Setup network interface</a></li>
+  <li><a href="#set-a-default-gateway">Set a default gateway</a></li>
+  <li><a href="#setup-dns">Setup DNS</a></li>
+  <li><a href="#bonus-dynamic-addresses-via-dhcp">Bonus: Dynamic addresses via DHCP</a></li>
+</ul>
+
+<h2 id="identify-and-disable-existing-configuration">Identify and disable existing configuration</h2>
+
+<p>Before I could set stuff up manually, I had to figure out my machine's existing configuration and disable it, so it wouldn't interfere with my handcrafted setup.</p>
+
+<p>The <a href="https://documentation.ubuntu.com/server/explanation/networking/configuring-networks/">Ubuntu documentation</a> was a useful resource to find out the services in use. The network on my machine is configured using NetworkManager and DNS is managed using the systemd-resolved service.</p>
+
+<p>I figured out what the above tools had setup using by trying out some of the code snippets in the docs, so I had a plan and a final result in mind.</p>
+
+<p>Based on this, I made a note of the following from  the existing configuration, which can be found by running <code>ip addr show</code>:</p>
+
+<ul>
+  <li>Interface name - typically starts with one of <code>eth</code>, <code>en</code>, <code>wlan</code> or <code>wl</code>.</li>
+  <li>IP address associated with the interface</li>
+  <li>Subnet mask - the slash next to the IP address</li>
+</ul>
+
+<p>Once I had the information noted down, I disabled<sup id="fnref:1"><a class="footnote" href="#fn:1" rel="footnote" role="doc-noteref">1</a></sup> NetworkManager and systemd-resolved (both running as <code>systemd</code> services) and set the network interface to down:</p>
+
+<pre><code># systemctl stop NetworkManager
+# systemctl disable NetworkManager
+Removed "/etc/systemd/system/network-online.target.wants/NetworkManager-wait-online.service".
+Removed "/etc/systemd/system/multi-user.target.wants/NetworkManager.service".
+Removed "/etc/systemd/system/dbus-org.freedesktop.nm-dispatcher.service".
+# systemctl stop systemd-resolved
+# systemctl disable systemd-resolved
+# ip link set dev wlp3s0 down</code></pre>
+
+<p>With this, the machine is no longer connected to the internet.</p>
+
+<h2 id="additional-setup-for-wireless-interfaces">Additional setup for wireless interfaces</h2>
+
+<p>There are two types of interfaces you could be setting up.</p>
+
+<p>One is for a connection made by connecting an Ethernet cable to your machine. If you were to try out this post on a Linux VM, you would be setting up an Ethernet connection and can skip this section. The other is a wireless interface, which can connect to WiFi networks.</p>
+
+<p>An Ethernet interface appears up/enabled at all times - even before it has actual internet access - as its connected via cable. Wireless interfaces on the other hand remain down/disabled until you connect to a WiFi network.</p>
+
+<p>This led to differences during setup, which required me to add separate instructions for both, making the post long and confusing.</p>
+
+<p>It is possible to connect to a WiFi network before having internet access - this would be similar to situations when your phone or laptop displays a "No Internet Connection" message while being connected to a network.</p>
+
+<p>The tool that helps connect to WiFi is <a href="https://www.linuxfromscratch.org/blfs/view/stable-systemd/basicnet/wpa_supplicant.html"><code>wpa_supplicant</code></a>. This is what the previous setup used, so I went with it. There may be a process for it running in the background from the previous setup which is no longer required, so you can terminate it if it exists:</p>
+
+<pre><code># ps -ef | grep -i [w]pa
+root         883       1  0 01:59 ?        00:00:00 /usr/sbin/wpa_supplicant -u -s -O DIR=/run/wpa_supplicant GROUP=netdev
+# systemctl stop wpa_supplicant
+# systemctl disable wpa_supplicant</code></pre>
+
+<p>The tool takes a configuration file, <code>wpa_supplicant.conf</code>, which contains information about the WiFi network you wish to connect to.</p>
+
+<pre><code># cat &lt;&lt;EOF &gt; /etc/wpa_supplicant/wpa_supplicant.conf
+ctrl_interface=DIR=/var/run/wpa_supplicant GROUP=netdev
+update_config=1
+
+network={
+	ssid="&lt;name&gt;"
+	psk="&lt;password&gt;"
+}
+EOF</code></pre>
+
+<p>Replace <code>&lt;name&gt;</code> and <code>&lt;password&gt;</code> with your WiFi's name and password in plaintext. Yes, you read that right - a PASSWORD stored in PLAINTEXT<sup id="fnref:2"><a class="footnote" href="#fn:2" rel="footnote" role="doc-noteref">2</a></sup>. I'm pretty shocked by this, but it seems to be a norm for WiFi tools, not sure why<sup id="fnref:3"><a class="footnote" href="#fn:3" rel="footnote" role="doc-noteref">3</a></sup>.</p>
+
+<p>I was following <a href="https://ubuntuforums.org/showthread.php?t=571188">this tutorial</a> which added further details to the network block like the protocol type and the encryption used. However, adding just the username and password seemed to work in my case.</p>
+
+<p>Then, I ran <code>wpa_supplicant</code> with the config file:</p>
+
+<pre><code># wpa_supplicant -D nl80211 -i wlp3s0 -c /etc/wpa_supplicant/wpa_supplicant.conf -B
+Successfully initialized wpa_supplicant</code></pre>
+
+<p>This is run as a background process (<code>-B</code>) so I can continue using the terminal to type other commands. I can confirm if the connection took place successfully via <code>iw</code>:</p>
+
+<pre><code># iw dev wlp3s0 info
+Interface wlp3s0
+	ifindex 2
+	wdev 0x1
+	addr &lt;MAC&gt;
+	ssid &lt;name&gt;
+	type managed
+	wiphy 0
+...</code></pre>
+
+<p>If the name next to the <code>ssid</code> field matches with name set in the configuration, that means the connection was successful.</p>
+
+<h2 id="setup-network-interface">Setup network interface</h2>
+
+<p>Without internet access, my network interface looked like this:</p>
+
+<pre><code># ip addr show dev wlp3s0
+2: wlp3s0: &lt;BROADCAST,MULTICAST&gt; mtu 1500 qdisc pfifo_fast state DOWN group default qlen 1000
+    link/ether &lt;MAC&gt; brd ff:ff:ff:ff:ff:ff</code></pre>
+
+<p>It needed an IP address to be able to talk to other machines that was missing. I assigned it one based on the information I noted down from the previous setup:</p>
+
+<pre><code># ip addr add 192.168.100.128/24 dev wlp3s0</code></pre>
+
+<p><code>192.168.100.128</code> is the IP address and <code>/24</code> is the subnet. The subnet, - a shorthand for <code>255.255.255.0</code> - means that this network assigns addresses in the range of <code>192.168.100.X</code>, where <code>X</code> can be anywhere between 1 and 254 (0 and 255 are reserved).</p>
+
+<p>I checked the interface after setting it to up, after which I can see the address!</p>
+
+<pre><code># ip link set dev wlp3s0 up
+# ip addr show dev wlp3s0
+2: wlp3s0: &lt;BROADCAST,MULTICAST,UP,LOWER_UP&gt; mtu 1500 qdisc pfifo_fast state UP group default qlen 1000
+    link/ether &lt;MAC&gt; brd ff:ff:ff:ff:ff:ff
+    inet 192.168.100.128/24 scope global wlp3s0
+       valid_lft forever preferred_lft forever</code></pre>
+
+<p>With this, I was online!</p>
+
+<p>Well, sort of. If I tried to ping another machine in the same network, it worked!</p>
+
+<pre><code># ping -c3 192.168.100.141
+PING 192.168.100.141 (192.168.100.141) 56(84) bytes of data.
+64 bytes from 192.168.100.141: icmp_seq=1 ttl=64 time=4.09 ms
+64 bytes from 192.168.100.141: icmp_seq=2 ttl=64 time=92.1 ms
+64 bytes from 192.168.100.141: icmp_seq=3 ttl=64 time=113 ms
+
+--- 192.168.100.141 ping statistics ---
+3 packets transmitted, 3 received, 0% packet loss, time 2003ms
+rtt min/avg/max/mdev = 4.088/69.678/112.835/47.144 ms</code></pre>
+
+<p>However, pinging a machine outside the network didn't.</p>
+
+<pre><code># ping 1.1.1.1
+ping: connect: Network is unreachable</code></pre>
+
+<p>There had to be a way to route packets outside of the network.</p>
+
+<h2 id="set-a-default-gateway">Set a default gateway</h2>
+
+<p>Accessing machines outside of the network requires a default gateway - an address that forwards packets to other networks when the destination address isn't part of the network's address range. In a home network, this address would likely be assigned to your router.</p>
+
+<p>This information is added to the routing table, and is typically the first assignable address in the address range, <code>192.168.100.1</code> in this case. The default gateway was set using <code>ip route</code>:</p>
+
+<pre><code># ip route add default via 192.168.100.1 dev wlp3s0
+# ip route show
+default via 192.168.100.1 dev wlp3s0
+192.168.100.0/24 wlp3s0 proto kernel scope link src 192.168.100.128</code></pre>
+
+<p><code>ip route show</code> displays the routing table. The first rule is the one I just set, and the second one specifies routing for the entire address range, which was set after I assigned the address in the previous step.</p>
+
+<p>Pinging to addresses outside of the network now worked!</p>
+
+<pre><code># ping -c3 1.1.1.1
+PING 1.1.1.1 (1.1.1.1) 56(84) bytes of data.
+64 bytes from 1.1.1.1: icmp_seq=1 ttl=59 time=23.4 ms
+64 bytes from 1.1.1.1: icmp_seq=2 ttl=59 time=8.74 ms
+64 bytes from 1.1.1.1: icmp_seq=3 ttl=59 time=7.11 ms
+
+--- 1.1.1.1 ping statistics ---
+3 packets transmitted, 3 received, 0% packet loss, time 2004ms
+rtt min/avg/max/mdev = 7.113/13.093/23.426/7.336 ms</code></pre>
+
+<p>But if I were to try pinging a domain name, that wouldn't work.</p>
+
+<pre><code># ping example.com
+ping: example.com: Temporary failure in name resolution</code></pre>
+
+<p>So close, yet so far. The error message meant that it is unable to translate example.com to an IP address, which points towards a DNS issue.</p>
+
+<h2 id="setup-dns">Setup DNS</h2>
+
+<p>The process of translating domain names to IP addresses is done by a nameserver. These name servers are defined in <code>/etc/resolv.conf</code>, which on my machine was a symbolic link:</p>
+
+<pre><code># ls -l /etc/resolv.conf
+lrwxrwxrwx 1 root root 39 Feb  7 04:49 /etc/resolv.conf -&gt; ../run/systemd/resolve/stub-resolv.conf</code></pre>
+
+<p>This was part of the previous configuration, as DNS was setup using systemd-resolved on this machine. Since I've disabled that, I removed the symlink and added my nameservers of choice. I used <a href="https://www.cloudflare.com/learning/dns/what-is-1.1.1.1/">Cloudflare's public DNS server</a> in this case:</p>
+
+<pre><code># rm /etc/resolv.conf
+# cat &lt;&lt;EOF &gt; /etc/resolv.conf
+nameserver 1.1.1.1
+nameserver 1.0.0.1
+EOF</code></pre>
+
+<p>Pinging domain names finally worked!</p>
+
+<pre><code># ping -c 1 example.com
+PING example.com (96.7.128.198) 56(84) bytes of data.
+64 bytes from a96-7-128-198.deploy.static.akamaitechnologies.com (96.7.128.198): icmp_seq=1 ttl=51 time=269 ms
+
+--- example.com ping statistics ---
+1 packets transmitted, 1 received, 0% packet loss, time 0ms
+rtt min/avg/max/mdev = 269.178/269.178/269.178/0.000 ms</code></pre>
+
+<p>This brings mission "connect to the Internet from scratch" to an end! I had a lot of fun working on this and learnt a lot, I hope you enjoyed reading this too! Before I end the post though, there's one little side quest I wanted to cover.</p>
+
+<h2 id="bonus-dynamic-addresses-via-dhcp">Bonus: Dynamic addresses via DHCP</h2>
+
+<p>The IP address I set above is a static IP, which doesn't change. Each time I connect to the network, I can assign it the same address.</p>
+
+<p>There are two problems with this:</p>
+<ul>
+  <li>I need to know the address range for each network before I connect to it, which is time-consuming.</li>
+  <li>Setting an IP this way might cause confusion if another machine has been assigned the same address.</li>
+</ul>
+
+<p>The solution for this is to let the network assign an address when you connect to it, which is how your default setup most likely works. This is done using DHCP or the Dynamic Host Configuration Protocol.</p>
+
+<p>I got it working using a tool called <code>dhclient</code>. It doesn't work if an IP address is already assigned to the interface, so I removed the static IP and default gateway I had set first:</p>
+
+<pre><code># ip addr flush dev wlp3s0
+# ip route flush dev wlp3s0
+# dhclient -v wlp3s0
+Internet Systems Consortium DHCP Client 4.4.3-P1
+Copyright 2004-2022 Internet Systems Consortium.
+All rights reserved.
+For info, please visit https://www.isc.org/software/dhcp/
+
+Listening on LPF/wlp3s0/&lt;MAC&gt;
+Sending on   LPF/wlp3s0/&lt;MAC&gt;
+Sending on   Socket/fallback
+xid: warning: no netdev with useable HWADDR found for seed's uniqueness enforcement
+xid: rand init seed (0x67d6369b) built using gethostid
+DHCPDISCOVER on wlp3s0 to 255.255.255.255 port 67 interval 3 (xid=0xf29dbc1c)
+DHCPOFFER of 192.168.100.128 from 192.168.100.1
+DHCPREQUEST for 192.168.100.128 on wlp3s0 to 255.255.255.255 port 67 (xid=0x1cbc9df2)
+DHCPACK of 192.168.100.128 from 192.168.100.1 (xid=0xf29dbc1c)
+bound to 192.168.100.128 -- renewal in 271244 seconds.</code></pre>
+
+<p>From the output, it looks like the network's router (<code>192.168.100.1</code>) assigned this machine with the address <code>192.168.100.128</code>, which is what I was setting statically too.</p>
+
+<p>What I also noticed was that running this also setup the default gateway and DNS automagically - and that too to the same address?!?!?</p>
+
+<pre><code># ip route show | awk '/default via/{print $3}'
+192.168.100.1
+# cat /etc/resolv.conf
+192.168.100.1</code></pre>
+
+<p>After some searching, I <a href="https://lobste.rs/s/563zjp/how_does_linux_machine_connect_internet">found</a> that my router (aka the default gateway) is also capable of handling DNS requests. More specifically, it can forward DNS requests to servers it has configured that are likely specified by my ISP, and then send it back to my machine. Pretty cool!</p>
+
+<p>What's not so cool though, is that this one command basically automated almost everything I set up lovingly by hand :/ The experiment was still worth it though, as I now know exactly what steps the tool is automating.</p>
+<h2 id="notes">Notes</h2>
+  <ol class="footnotes" role="doc-endnotes">
+    <li id="fn:1" role="doc-endnote">
+      <p>In my first attempt, I removed NetworkManager from the system all together, but reached a dead end and had to reinstall it. That's why I recommend disabling instead, as its easy to start over by enabling the service.&nbsp;<a class="reversefootnote" href="#fnref:1" role="doc-backlink">↩</a></p>
+    </li>
+    <li id="fn:2" role="doc-endnote">
+      <p>It is possible to generate a password hash with a tool called <code>wpa_passphrase</code>, but turns out that you can use the hash as is to connect to a network without knowing the actual password. This kind of makes hashing pointless.&nbsp;<a class="reversefootnote" href="#fnref:2" role="doc-backlink">↩</a></p>
+    </li>
+    <li id="fn:3" role="doc-endnote">
+      <p>Even NetworkManager had my WiFi password stored in plaintext in a config file, which was a shocker. The rationale provided is that the file permissions are set such that only root can access it, making it safe. I'm not so sure about that.&nbsp;<a class="reversefootnote" href="#fnref:3" role="doc-backlink">↩</a></p>
+    </li>
+  </ol>
+
+</main>
+<footer>
+<div>
+<a id="rc-ring-prev" href="https://ring.recurse.com/prev?id=28">←</a>
+<a id="rc-ring-home" data-rc-uuid="31ba89ab-ad76-4fea-a2d0-ef53d540cc81" href="https://ring.recurse.com/">RC Webring</a>
+<a id="rc-ring-next" href="https://ring.recurse.com/next?id=28">→</a>
+</div>
+</footer>
+</body>
+</html>

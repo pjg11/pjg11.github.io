@@ -1,0 +1,269 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<link rel="stylesheet" href="/public/style.css">
+<title>RC03: The Curious Case of the Inconsistent Byte Order - pjg1.site</title>
+</head>
+<body>
+<nav>
+<a href="/">pjg1.site</a>
+<a href="/now">Now</a>
+<a href="/contact">Contact</a>
+<a href="/feed.xml">RSS</a>
+</nav>
+<main>
+<h1>RC03: The Curious Case of the Inconsistent Byte Order</h1>
+<p>
+<time datetime="2023-09-18 00:00:00 +0400">18 September 2023</time> •
+<a href="/tags#c">#c</a>
+<a href="/tags#recurse">#recurse</a>
+<a href="/tags#networking">#networking</a>
+</p>
+<div class="note">
+<p>This post is written during a batch at the <a href="https://www.recurse.com/scout/click?t=2ac66128b9116e0722d941ebf7e14b5a">Recurse Center</a>, a retreat for programmers.</p>
+</div>
+
+<p>This week, I started working on building a <a href="https://github.com/pjg11/tuntcp">TCP/IP stack from scratch in C</a>.</p>
+
+<p>Part of the IP implementation is calculating the checksum, which requires splitting the IP header into 16-bit chunks. I'll be using these hex bytes from an IP packet as an example</p>
+
+<pre><code>45 00 00 14 00 01 00 00 40 06 00 00 0a 00 02 0f d0 5e 75 2b</code></pre>
+
+<p>which should be converted into the following chunks</p>
+
+<pre><code>4500 0014 0001 0000 4006 0000 0a00 020f d05e 752b</code></pre>
+
+<p>Sounds simple, right? I thought so too, but not when C code is involved! Things didn't work as I expected them to, and I decided to start an investigation.</p>
+
+<h2 id="initial-assessment">Initial assessment</h2>
+
+<p>Here's the program I was working with. It first creates an IP packet, then displays the packet as 16-bit chunks.</p>
+
+<pre><code>#include &lt;stdio.h&gt;
+#include &lt;stdlib.h&gt;
+#include &lt;arpa/inet.h&gt;
+
+struct ipv4 {
+    uint8_t     version_ihl;
+    uint8_t     tos;
+    uint16_t    len;
+    uint16_t    id;
+    uint16_t    frag_offset;
+    uint8_t     ttl;
+    uint8_t     proto;
+    uint16_t    checksum;
+    uint32_t    src;
+    uint32_t    dst;
+};
+
+int main(void) {
+    struct ipv4 * ip = calloc(1, sizeof(struct ipv4));
+    uint32_t saddr, daddr;
+    inet_pton(AF_INET, "10.0.2.15", &amp;saddr);
+    inet_pton(AF_INET, "208.94.117.43", &amp;daddr);
+
+    ip-&gt;version_ihl = 4 &lt;&lt; 4 | 5;
+    ip-&gt;tos = 0;
+    ip-&gt;len = 20;
+    ip-&gt;id = 1;
+    ip-&gt;frag_offset = 0;
+    ip-&gt;ttl = 6;
+    ip-&gt;proto = 6;
+    ip-&gt;checksum = 0;
+    ip-&gt;src = saddr;
+    ip-&gt;dst = daddr;
+
+    uint16_t *p = (uint16_t *) ip;
+    size_t count = sizeof(*ip);
+
+    while (count &gt; 1)  {
+        printf("%.4x ", *p++);
+        count -= 2;
+    }
+    printf("\n");
+
+    return 0;
+}</code></pre>
+
+<p>And…that didn't go as I hoped.</p>
+
+<pre><code>$ gcc -o checksum checksum.c
+$ ./checksum
+0045 0014 0001 0000 0640 0000 000a 0f02 5ed0 2b75</code></pre>
+
+<p>Chunks 2, 3, 4 and 6 look correct, but the other chunks display individual bytes in the opposite order.</p>
+
+<h2 id="the-prime-suspect---byte-order">The prime suspect - Byte Order</h2>
+
+<p>I suspected this to have something to do with the byte order - the way in which our machines stores bytes.</p>
+
+<p>I explain these terms briefly in the following sections, but I would also recommend reading the <a href="https://beej.us/guide/bgnet/html/#byte-order">Byte Order section</a> from Beej's Guide to Network Programming, an excellent resource for low-level network stuff.</p>
+
+<p>I assigned all variables in the way I usually would, so I assumed that the machine would store and print all values in the same order.</p>
+
+<p>But seeing an inconsistent byte order in the output instead confused me, which made the investigation very interesting.</p>
+
+<h2 id="trial-and-error">Trial and error</h2>
+
+<p>I started with changing the printing section of the code to display individual bytes instead of chunks.</p>
+
+<pre><code>uint8_t *p = (uint8_t *) ip;
+size_t count = sizeof(*ip);
+
+while (count &gt; 1) {
+    printf("%.2x ", *p++);
+    count -= 1;
+}
+
+printf("\n");</code></pre>
+
+<p>The output confused me even more.</p>
+
+<pre><code>$ gcc -o checksum checksum.c
+$ ./checksum
+45 00 14 00 01 00 00 00 40 06 00 00 0a 00 02 0f d0 5e 75 2b</code></pre>
+
+<p>This looks closer to the header at the start of the post, but bytes 3-6 are written in the wrong order. The correct order would be <code>00 14 00 01</code>.</p>
+
+<p>Additionally, the bytes are displayed in the exact opposite order of the chunks output. What? Why?</p>
+
+<p><em>*sigh*</em></p>
+
+<p>Let's put some questions in place to guide the investigation:</p>
+<ol>
+  <li>Why are bytes in the chunks output reversed?</li>
+  <li>Why does the bytes output have only some bytes printed in the opposite order?</li>
+</ol>
+
+<h2 id="getting-somewhere">Getting somewhere</h2>
+
+<p>The answer to the first question is an example I remembered, from the book <a href="https://nostarch.com/hacking2.htm">Hacking: The Art of Exploitation</a>. It prints the contents of a register in different ways in <code>gdb</code>. Here's a modified version of it:</p>
+
+<pre><code>(gdb) x/xh $eip
+0x8048384 &lt;main+16&gt;: 0x45c7
+(gdb) x/2xb $eip
+0x8048384 &lt;main+16&gt;: 0xc7 0x45</code></pre>
+
+<p>The second command is the individual byte representation of the first command, the same as my case. The book also explains why this happens - the byte order, my prime suspect.</p>
+
+<p>The little-endian order, which is the byte order of my machine (and most machines), stores bytes in the reverse order to what we think they would store.</p>
+
+<p>Keeping the above example in mind, it is common to think that the value <code>0x45c7</code> would be stored as the bytes <code>45 c7</code> in memory. But nope, my machine stores the value as <code>c7 45</code> instead, which is the output of the second command.</p>
+
+<p>If they were stored in the opposite order, they would have to be read in the opposite order too. So the bytes are read from right to left, and hence displayed in the reverse order when printed as a chunk.</p>
+
+<p>Okay, one question solved, one more to go!</p>
+
+<h2 id="the-case-gets-complicated">The case gets complicated</h2>
+
+<p>The second question was not as easy to answer.</p>
+
+<p>The bytes in question, bytes 3-6 of the header, correspond to the <code>len</code> and <code>id</code> fields of the IP header. Let's start with the declaration of these fields:</p>
+
+<pre><code>uint16_t    len;
+uint16_t    id;</code></pre>
+
+<p>They're both 16 bits or 2 bytes in size. Here's how they were assigned:</p>
+
+<pre><code>ip-&gt;len = 20;
+ip-&gt;id = 1;</code></pre>
+
+<p>As little-endian is the default byte order of the machine, it applies to these assignments too. So the value 20 is represented as hex bytes <code>14 00</code> in memory, while the value 1 corresponds to the hex bytes <code>01 00</code>.</p>
+
+<p>Now this is a problem, as network programs store and read data from left to right, like we do. That order is called the big-endian order.</p>
+
+<p>To solve this, we would need to switch the byte order from little to big-endian, which can be done with a function called <a href="https://beej.us/guide/bgnet/html/#htonsman"><code>htons()</code></a> or <strong>h</strong>ost <strong>to</strong> <strong>n</strong>etwork <strong>s</strong>hort. Host Byte Order in this case is little-endian, while Network Byte Order is always big-endian.</p>
+
+<p>This would solve the problem, but something doesn't feel right. Changing the byte order just for two fields doesn't make sense. <em>Why do the other values not require <code>htons()</code>?</em></p>
+
+<h2 id="mystery-solved">Mystery solved</h2>
+
+<p>It's something I struggled to figure even as I started typing this post, but I think I got it:</p>
+
+<ul>
+  <li>
+    <p>The fields <code>version_ihl</code>, <code>tos</code>, <code>ttl</code>, and <code>proto</code> are 8 bits or 1 byte in size. Byte order matters for values greater than a byte, which isn't the case here. So no <code>htons()</code> required.</p>
+  </li>
+  <li>
+    <p>The <code>src</code> and <code>dst</code> fields (32 bits each) are in big-endian order already, thanks to <a href="https://beej.us/guide/bgnet/html/#inet_ntopman"><code>inet_pton()</code></a>. No <code>htons()</code> required here either.</p>
+  </li>
+  <li>
+    <p>The <code>frag_offset</code> and <code>checksum</code> fields were a big reason behind the confusion. They're the same size as <code>len</code> and <code>id</code>, but were intialized to 0. As the bytes <code>00 00</code> are the same as <code>00 00</code><sup id="fnref:1"><a class="footnote" href="#fn:1" rel="footnote" role="doc-noteref">1</a></sup>, it looked like they displayed correctly. <code>htons()</code> would be required for these fields.</p>
+  </li>
+</ul>
+
+<p>And now, it all makes sense. The byte order needs to be switched for all fields greater than a byte.</p>
+
+<h2 id="conclusion">Conclusion</h2>
+
+<p>Based on the above findings, I made the following changes, making the byte order consistent across the struct.</p>
+
+<pre><code>ip-&gt;version_ihl = 4 &lt;&lt; 4 | 5;
+ip-&gt;tos = 0;
+ip-&gt;len = htons(20);
+ip-&gt;id = htons(1);
+ip-&gt;frag_offset = htons(0);
+ip-&gt;ttl = 64;
+ip-&gt;proto = 6;
+ip-&gt;checksum = htons(0);
+ip-&gt;src = saddr;
+ip-&gt;dst = daddr;</code></pre>
+
+<p>With that set, the bytes print correctly!</p>
+
+<pre><code>$ gcc -o checksum checksum.c
+$ ./checksum
+45 00 00 14 00 01 00 00 40 06 00 00 0a 00 02 0f d0 5e 75 2b</code></pre>
+
+<p>I changed the printing section to display chunks again, and they look fine too.</p>
+
+<pre><code>$ gcc -o checksum checksum.c
+$ ./checksum
+0045 1400 0100 0000 0640 0000 000a 0f02 5ed0 2b75</code></pre>
+
+<p>I was wondering if this swapped order of chunks would affect the resulting checksum. According to <a href="https://www.rfc-editor.org/rfc/rfc1071#page-3">RFC 1071</a>, it doesn't:</p>
+
+<blockquote>
+<p>Therefore, the sum may be calculated in exactly the same way
+regardless of the byte order ("big-endian" or "little-endian")
+of the underlaying hardware.  For example, assume a "little-
+endian" machine summing data that is stored in memory in network
+("big-endian") order.  Fetching each 16-bit word will swap
+bytes, resulting in the sum [4]; however, storing the result
+back into memory will swap the sum back into network byte order.</p>
+</blockquote>
+
+<p>Interesting! I didn't know little-endian byte order worked like this.</p>
+
+<p>With that, I declare this investigation complete. Detective Piya, signing off!</p>
+
+<h2 id="the-mystery-was-already-solved">The mystery was already solved?</h2>
+
+<p>Just as I was finishing up this post, I read through the <a href="https://beej.us/guide/bgnet/html/#byte-order">Byte Order section</a> in Beej's Guide again, where I found this:</p>
+
+<blockquote>
+<p>A lot of times when you're building packets or filling out data structures you'll need to make sure your two- and four-byte numbers are in Network Byte Order.</p>
+</blockquote>
+
+<p>Oh well, the solution was here all along. Regardless, I enjoyed sharpening my debugging skills by figuring things out step by step (and making this post, too!).</p>
+
+<h2 id="notes">Notes</h2>
+
+<ol class="footnotes" role="doc-endnotes">
+<li id="fn:1" role="doc-endnote">
+<p>Which one refers to which byte order is totally up to you :P <a class="reversefootnote" href="#fnref:1" role="doc-backlink">↩</a></p>
+ </li>
+</ol>
+
+</main>
+<footer>
+<div>
+<a id="rc-ring-prev" href="https://ring.recurse.com/prev?id=28">←</a>
+<a id="rc-ring-home" data-rc-uuid="31ba89ab-ad76-4fea-a2d0-ef53d540cc81" href="https://ring.recurse.com/">RC Webring</a>
+<a id="rc-ring-next" href="https://ring.recurse.com/next?id=28">→</a>
+</div>
+</footer>
+</body>
+</html>

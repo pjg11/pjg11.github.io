@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<link rel="stylesheet" href="/public/style.css">
+<title>Things I learnt while working on ZulipFS - pjg1.site</title>
+</head>
+<body>
+<nav>
+<a href="/">pjg1.site</a>
+<a href="/now">Now</a>
+<a href="/contact">Contact</a>
+<a href="/feed.xml">RSS</a>
+</nav>
+<main>
+<h1>Things I learnt while working on ZulipFS</h1>
+<p>
+<time datetime="2025-02-03 00:00:00 +0400">3 February 2025</time> •
+<a href="/tags#recurse">#recurse</a>
+</p>
+<div class="note">
+<p>This post is written during a batch at the <a href="https://www.recurse.com/scout/click?t=2ac66128b9116e0722d941ebf7e14b5a">Recurse Center</a>, a retreat for programmers.</p>
+</div>
+
+<p>I came across <a href="https://en.wikipedia.org/wiki/Filesystem_in_Userspace">FUSE</a> recently, which brought up an idea: <em>what if I could access a <a href="https://zulip.com">Zulip</a> instance as a filesystem?</em></p>
+
+<p>This led to the creation of ZulipFS, where channels are represented as directories, and topics as files within those directories. The usage and code for the project is available <a href="https://github.com/pjg11/zulipfs">here</a>. This post talks about things I learnt about FUSE, filesystems in general and design choices I made in the process.</p>
+
+<h2 id="how-fuse-works-in-a-nutshell">How FUSE works in a nutshell</h2>
+
+<p>FUSE lets you mount a folder containing files and folders. These could be actual files and folders (eg: <a href="https://github.com/libfuse/sshfs">SSHFS</a> where files from a remote network are mounted) or virtual files (eg: <a href="https://omar.website/tabfs/">TabFS</a>, where information from browser tabs are presented as files and folders). You write your own implementation for relevant <a href="https://libfuse.github.io/doxygen/structfuse__operations.html">system calls</a> relating to file operations, and FUSE will run your implementation instead of the standard implementation.</p>
+
+<p>The system calls I implemented in ZulipFS are:</p>
+
+<ul>
+  <li><code>read</code> + <code>write</code> for reading and writing files</li>
+  <li><code>readdir</code> to list directory information</li>
+  <li><code>getattr</code> that returns the metadata for each file and directory</li>
+</ul>
+
+<h2 id="file-metadata-is-more-important-than-i-thought">File metadata is more important than I thought</h2>
+
+<p>When I implemented and tested reading a message from a topic, only part of a message got printed. I checked if the API call was returning a partial message, but that seemed fine.</p>
+
+<p>Turns out, I had the file size set to 512 bytes as I was working off of <a href="https://gitlab.com/gunnarwolf/fuse_in_python_guide/-/blob/main/useful/dnsfs.py">this example code</a>. So <code>read</code> checks for the size of a file and prints only that many bytes, which makes sense!</p>
+
+<p>I now had to figure out a way to get the file size before the message has been read.</p>
+
+<h2 id="reading-and-knowing-a-file-are-two-different-things">Reading and knowing a file are two different things</h2>
+
+<p>The file size is set in the <code>getattr</code> function, which is called each time a file is read or listed. So the Zulip API would be called twice for a file read - once in <code>getattr</code> to get the length of the message, and then in <code>read</code> to display the message itself.</p>
+
+<p>For this, I created a function called <code>get_topic</code> which can be called by <code>getattr</code> and <code>read</code>:</p>
+
+<pre><code>def get_topic(self, channel, topic):
+  channel_id = self.channels[channel]['stream_id']
+
+  # returns the ID of the last message along with the topic name
+  topicslist = self.client.get_stream_topics(channel_id)['topics']
+  self.topics[channel] = { self.normalize(t['name']): t for t in topicslist }
+
+  # get the message contents using the message ID
+  message = self.client.get_raw_message(self.topics[channel][topic]['max_id'])
+  message_fmt = f"""[{datetime.fromtimestamp(message['message']['timestamp'])}] {message['message']['sender_full_name']}
+{message['raw_content']}
+""".encode()
+
+  self.topics[channel][topic] = {
+    'last_message': message_fmt,
+    'last_timestamp': float(message['message']['timestamp']),
+  }
+  return self.topics[channel][topic]</code></pre>
+
+<p>Making the same API calls twice felt a bit excessive for reading, but it was okay as long as it wasn't slowing things down. Then I tried listing all the topics in a channel via <code>ls</code>, and things slowed down…A LOT.</p>
+
+<p>Why, you ask? The function handling directory listing, <code>readdir</code>, calls <code>getattr</code> for EACH FILE in the directory. If a channel has 300 topics, that's 300 API calls before <code>ls</code> completes execution. To add to the chaos, <code>get_topic</code> above uses API calls instead of one, which means 600 API calls before <code>ls</code> completes execution. I had to find ways to optimize this.</p>
+
+<h2 id="lazy-loading-files">Lazy loading files?!?!?</h2>
+
+<p>The first optimization attempt was to remove the <code>get_topic</code> call from <code>getattr</code>, and call it only in <code>read</code>. I placed an exception block in <code>getattr</code>, which would assign a file size of 65535 bytes on mount, and a subsequent <code>read</code> would fill the hash map with the correct values, which <code>getattr</code> would take the next time its called.</p>
+
+<pre><code>def getattr(self, path):
+# ...snip...
+# topic/file
+try:
+  channel, topic = path[1:].split('/')
+  try:
+    timestamp = self.topics[channel][topic]['last_timestamp']
+  except KeyError:
+    timestamp = now
+
+  try:
+    st.st_size = len(self.topics[channel][topic]['last_message'])
+  except KeyError:
+    st.st_size = 65535
+# ...snip...</code></pre>
+
+<p>This worked initially, but caused problems when I wanted to append new messages instead of just displaying the last one. After lots of trial and error, a question popped up in my head: <em>What if I don't create all topic files right away, and add them only after someone tries to read or list it?</em></p>
+
+<p>This seemed like a great idea as it would significantly reduce the number of API calls made at once. Things might slow down eventually as you read more and more topics, but it would still be faster than trying to list all topics at once.</p>
+
+<p>Another optimization I was able to make was combining the two API calls into one using  <a href="https://zulip.com/api/get-messages"><code>get_messages</code></a>, which powers Zulip's search functionality. I can pass it the name of a channel and topic, and ask it to return the last message of that topic. If either the channel or topic doesn't exist, it'll return an empty result.</p>
+
+<pre><code>def get_topic(self, channel, topic):
+  request = {
+    "anchor": "newest",
+    "num_before": 1,
+    "num_after": 0,
+    "narrow": [
+      {"operator": "channel", "operand": self.channels[channel]['name']},
+      {"operator": "topic", "operand": self.zulip_name(topic)},
+    ],
+    "apply_markdown": False,
+  }
+  try:
+    message = self.client.get_messages(request)['messages'][0]
+    message_fmt = f"""[{datetime.fromtimestamp(message['timestamp'])}] {message['sender_full_name']}
+{message['content']}
+""".encode()
+
+    self.topics[channel][topic] = {
+      'last_message': message_fmt,
+      'last_timestamp': float(message['timestamp']),
+    }
+  except IndexError:
+    # channel or topic doesn't exist
+    pass
+
+  # if a channel or topic doesn't exist, this statement will cause an
+  # exception in the function where this is called.
+  return self.topics[channel][topic]</code></pre>
+
+<p>These optimizations made things fast enough that I could call <code>get_topic</code> from <code>getattr</code> again, so I could get rid of the extra try/except blocks:</p>
+
+<pre><code># topic/file
+try:
+  channel, topic = path[1:].split('/')
+  t = self.get_topic(channel, topic)
+  st.st_mode = stat.S_IFREG | 0o644
+  st.st_nlink = 1
+  st.st_size = len(t['last_message'])
+  st.st_mtime = t['last_timestamp']
+except (KeyError, ValueError):
+  return -errno.ENOENT</code></pre>
+
+<h2 id="appending-new-messages">Appending new messages</h2>
+
+<p>I presented the pre-optimization version at the weekly <a href="https://www.recurse.com/scout/click?t=2ac66128b9116e0722d941ebf7e14b5a">Recurse Center</a> presentations, and fellow batchmates <a href="https://eieio.games">Nolen</a> and <a href="https://bsky.app/profile/ohsh.it">Kevin O</a> suggested to add the ability to read new messages from a topic as they arrive by running <code>tail -f</code> on the file. This seemed like a good idea, and more useful than displaying just the last message.</p>
+
+<p>I initially thought appending would require implementing a system call, but it was easier than I thought - if the timestamp of the current message is newer than the previous one, I append the new message to the end of the previous one in <code>get_topic</code>. I also needed an additional check for whether the topic had been read before or not, to initialize the file for the first time.</p>
+
+<p>The <code>try</code> block in <code>get_topic</code> now looks like this:</p>
+
+<pre><code>try:
+  message = self.client.get_messages(request)['messages'][0]
+  timestamp = float(message['timestamp'])
+  message_fmt = f"""[{datetime.fromtimestamp(message['timestamp'])}] {message['sender_full_name']}
+{message['content']}
+""".encode()
+
+  if topic not in self.topics[channel]:
+    # First message in file
+    self.topics[channel][topic] = {
+      'last_message': message_fmt,
+      'last_timestamp': timestamp,
+    }
+    else:
+      # Subsequent messages appended to file
+      if timestamp &gt; self.topics[channel][topic]['last_timestamp']:
+        self.topics[channel][topic] = {
+          'last_message': self.topics[channel][topic]['last_message'] + b"\n" + message_fmt,
+          'last_timestamp': timestamp,
+        }
+except IndexError:
+  # channel or topic doesn't exist
+  pass</code></pre>
+
+<h2 id="filename-gotchas">Filename gotchas</h2>
+
+<p>One of the earliest errors I encountered was displaying names that had slashes in them. In Linux and other Unix-based OS's, a slash is considered as a delimiter for a directory rather than part of a filename. One thing I'd seen certain apps do is change special characters to their URL-encoded versions, so I replaced all instances of <code>/</code> with <code>%2F</code>.</p>
+
+<p>Another set of characters that are inconvenient to type in the terminal are emojis. I was initially thinking of getting rid of them, but then I realized that looking up the channel name would become tricky.</p>
+
+<p>I remembered seeing textual representations of emojis, which turns out are called <a href="https://emojipedia.org/shortcodes">shortcodes</a>, and they're written as text in-between colons <code>:</code>. For example, the shortcode for 📝 is <code>:memo:</code>​, and these are understood by Zulip. Python has an <code>emoji</code> package that converts emojis to shortcodes and vice versa.</p>
+
+<p>With that, I had two functions to convert Zulip names to a valid filename and vice versa.</p>
+
+<pre><code>def file_name(self, name):
+  return emoji.demojize(name.replace('/', '%2F'))
+
+def zulip_name(self, name):
+  return emoji.emojize(name.replace('%2F', '/'))</code></pre>
+
+<h2 id="acknowledgements">Acknowledgements</h2>
+
+<p>Thanks to <a href="https://fractalkitty.com">Sophia</a> for reviewing a draft of this post.</p>
+
+</main>
+<footer>
+<div>
+<a id="rc-ring-prev" href="https://ring.recurse.com/prev?id=28">←</a>
+<a id="rc-ring-home" data-rc-uuid="31ba89ab-ad76-4fea-a2d0-ef53d540cc81" href="https://ring.recurse.com/">RC Webring</a>
+<a id="rc-ring-next" href="https://ring.recurse.com/next?id=28">→</a>
+</div>
+</footer>
+</body>
+</html>

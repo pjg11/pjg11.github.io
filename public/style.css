@@ -1,0 +1,137 @@
+:root {
+    color-scheme: light dark;
+    --border: #888;
+    --block: #f2f2f2;
+    --block2: #ccc;
+    --fg: black;
+    --bg: white;
+}
+@media(prefers-color-scheme: dark) {
+    :root {
+        --border: #999;
+        --block: #2e2e2e;
+        --block2: #777;
+        --fg: white;
+        --bg: #1e1e1e;
+    }
+}
+html {
+    font: 1rem/1.33 system-ui;
+    background: var(--bg);
+    color: var(--fg);
+}
+body > * {
+    max-width: 65ch;
+    margin: 1rem auto;
+}
+main {
+    padding: 1.5rem;
+    border: thin solid var(--border);
+    box-sizing: border-box;
+}
+img {
+    width: 100%;
+    height: auto
+}
+code, kbd {
+    font-size: 92.5%;
+    font-family: SF Mono, ui-monospace, monospace;
+}
+pre {
+	border: thin solid var(--border);
+}
+pre code {
+    display: block;
+    overflow: auto;
+    padding: 0.5rem;
+}
+blockquote {
+    padding-left: 1ch;
+    border-left: 0.25rem solid var(--block2);
+    margin-top: 1.25rem;
+    margin-bottom: 1.25rem;
+}
+div.note {
+    background: var(--block);
+    padding: 0.1rem 0.75rem;
+    border-left: 0;
+    border-right: 0;
+    margin: 1rem 0;
+}
+figure {
+    margin: 0
+}
+img {
+    width: 100%;
+    height: auto;
+}
+figcaption {
+    text-align: center
+}
+hr {
+	border-top: thin solid var(--border);
+	border-bottom: 0;
+}
+h1 {
+    font-size: 135%;
+    margin-top: 0.5rem;
+    border-bottom: thin solid var(--border);
+    padding-bottom: 0.25rem;
+    margin-bottom: 0.5rem;
+	text-wrap: balance
+}
+h1 + p {
+    color: var(--border);
+    margin-top: 0;
+    margin-bottom: 1.5rem;
+    display: block;
+}
+h1 + p a {
+    color: inherit;
+}
+h2 {
+    font-size: 115%;
+    margin-top: 1.5rem;
+}
+h3 {
+    font-size: 100%
+}
+sup {
+    line-height: 0
+}
+nav, footer {
+    display: flex;
+    gap: 0.75rem;
+    justify-content: center;
+	align-items: center
+}
+nav a, footer a {
+    border: thin solid var(--border);
+    color: inherit;
+    padding: 0.25rem 0.5rem;
+    text-decoration: none;
+}
+nav a:hover, footer a:hover {
+    background: var(--block);
+}
+li {
+    margin-bottom: 0.1rem;
+
+}
+ul.posts {
+    padding: 0;
+    list-style-type: none;
+}
+ul.posts li {
+	margin-bottom: 0.25rem
+}
+ul.posts time {
+    float: right;
+    color: var(--border);
+}
+ul.posts a:visited {
+    color: VisitedText
+}
+a {
+    color: LinkText
+}

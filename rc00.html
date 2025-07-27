@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<link rel="stylesheet" href="/public/style.css">
+<title>RC00: Interesting Python behavior - pjg1.site</title>
+</head>
+<body>
+<nav>
+<a href="/">pjg1.site</a>
+<a href="/now">Now</a>
+<a href="/contact">Contact</a>
+<a href="/feed.xml">RSS</a>
+</nav>
+<main>
+<h1>RC00: Interesting Python behavior</h1>
+<p>
+<time datetime="2023-08-10 00:00:00 +0400">10 August 2023</time> •
+<a href="/tags#python">#python</a>
+<a href="/tags#recurse">#recurse</a>
+</p>
+<div class="note">
+<p>This post is written during a batch at the <a href="https://www.recurse.com/scout/click?t=2ac66128b9116e0722d941ebf7e14b5a">Recurse Center</a>, a retreat for programmers.</p>
+</div>
+
+<p>I attended a pair programming workshop as part of the RC orientation talks. After a brief introduction to pairing and how it works, the attendees were paired with each other to code <a href="https://en.wikipedia.org/wiki/Conway%27s_Game_of_Life">Conway's Game of Life</a> within an hour.</p>
+
+<p>My pairing partner, <a href="https://msabin.github.io">Manuel</a> and I decided to code in Python, the first step being to create a grid. For some reason, my mind came up with this line of code:</p>
+
+<pre><code>grid=[['X']*10]*10</code></pre>
+
+<p>I don't recall seeing something like this before, so it came as a bit of a surprise. It seemed like a very neat trick and I was proud of myself. On running the code, it worked as intended, which was even more surprising.</p>
+
+<pre><code>$ python3 gameoflife.py
+[['X', 'X', 'X', 'X', 'X', 'X', 'X', 'X', 'X', 'X'],
+['X', 'X', 'X', 'X', 'X', 'X', 'X', 'X', 'X', 'X'],
+['X', 'X', 'X', 'X', 'X', 'X', 'X', 'X', 'X', 'X'],
+['X', 'X', 'X', 'X', 'X', 'X', 'X', 'X', 'X', 'X'],
+['X', 'X', 'X', 'X', 'X', 'X', 'X', 'X', 'X', 'X'],
+['X', 'X', 'X', 'X', 'X', 'X', 'X', 'X', 'X', 'X'],
+['X', 'X', 'X', 'X', 'X', 'X', 'X', 'X', 'X', 'X'],
+['X', 'X', 'X', 'X', 'X', 'X', 'X', 'X', 'X', 'X'],
+['X', 'X', 'X', 'X', 'X', 'X', 'X', 'X', 'X', 'X'],
+['X', 'X', 'X', 'X', 'X', 'X', 'X', 'X', 'X', 'X']]</code></pre>
+
+<p>The next stage was to set the initial state of the grid. This meant changing certain cells of the grid to another value, <code>O</code> in our case.</p>
+
+<pre><code>grid[5][5] = 'O'
+grid[4][5] = 'O'
+grid[4][6] = 'O'</code></pre>
+
+<p>I was sure this was going to work, but this happened instead.</p>
+
+<pre><code>$ python3 gameoflife.py
+[['X', 'X', 'X', 'X', 'X', 'O', 'O', 'X', 'X', 'X'],
+['X', 'X', 'X', 'X', 'X', 'O', 'O', 'X', 'X', 'X'],
+['X', 'X', 'X', 'X', 'X', 'O', 'O', 'X', 'X', 'X'],
+['X', 'X', 'X', 'X', 'X', 'O', 'O', 'X', 'X', 'X'],
+['X', 'X', 'X', 'X', 'X', 'O', 'O', 'X', 'X', 'X'],
+['X', 'X', 'X', 'X', 'X', 'O', 'O', 'X', 'X', 'X'],
+['X', 'X', 'X', 'X', 'X', 'O', 'O', 'X', 'X', 'X'],
+['X', 'X', 'X', 'X', 'X', 'O', 'O', 'X', 'X', 'X'],
+['X', 'X', 'X', 'X', 'X', 'O', 'O', 'X', 'X', 'X'],
+['X', 'X', 'X', 'X', 'X', 'O', 'O', 'X', 'X', 'X']]</code></pre>
+
+<p>Instead of specific cells, entire columns were updated? Strange.</p>
+
+<p>My attention went towards the multiply sign. <strong>Was it duplicating the same object instead of each row being a different object?</strong></p>
+
+<p>Turns out, yes! However, I wasn't entirely convinced and needed some evidence to back this up. After the workshop I came across <a href="https://pythontutor.com/python-debugger.html">Python Tutor</a>, a tool to visualize Python code, and decided to try it out.</p>
+
+<figure>
+<img alt="There are three blocks - a global frame with the variable name &quot;grid&quot;. The variable name points to block representing an array of index 10. Every index of the array points to a third block - an array of index 10 with the string &quot;X&quot; written for each index." class="dim" loading="lazy" src="/public/images/rc00/viz1.png">
+<figcaption><a href="https://pythontutor.com/render.html#code=grid%3D%5B%5B'X'%20for%20_%20in%20range%2810%29%5D%20for%20_%20in%20range%2810%29%5D&amp;cumulative=false&amp;curInstr=144&amp;heapPrimitives=nevernest&amp;mode=display&amp;origin=opt-frontend.js&amp;py=3&amp;rawInputLstJSON=%5B%5D&amp;textReferences=false">View on Python Tutor</a></figcaption>
+</figure>
+
+<p>The intended scenario would be to see 11 different arrays - the <code>grid</code> array, and 10 arrays containing 10 X's each. However, here we see 2 arrays - <code>grid</code> and one array with 10 X's, which I'll call <code>row</code> from now on.</p>
+
+<p>Each index of <code>grid</code> points to <code>row</code>. So <code>grid[0] == grid[1] ... == grid[9]</code>. Any changes to <code>row</code> will reflect a change in <code>grid[n]</code>, <code>n</code> being 0-9 in this case. Evidence found!</p>
+
+<p>We can also see this in action using <code>id()</code> within Python, which prints out the memory address of an object.</p>
+
+<pre><code>&gt;&gt;&gt; grid=[['X']*10]*10
+&gt;&gt;&gt; id(grid[0])
+4315577152
+&gt;&gt;&gt; id(grid[1])
+4315577152</code></pre>
+
+<p>The memory address for both <code>row</code>s is the same, indicating that they're pointing to the same object.</p>
+
+<p>This property is true for lists of other items as well, for example a dictionary:</p>
+
+<pre><code>&gt;&gt;&gt; data = [{'x':1, 'y':2}]*10
+&gt;&gt;&gt; id(data[0])
+4312977664
+&gt;&gt;&gt; id(data[1])
+4312977664</code></pre>
+
+<p>How does this explain the two columns being changed? Here's what happened:</p>
+<ul>
+  <li>The indexes we tried to change were <code>grid[5][5]</code>, <code>grid[4][5]</code> and <code>grid[4][6]</code>.</li>
+  <li><code>grid[4]</code> and <code>grid[5]</code> are pointing to <code>row</code>, so indexes 5 and 6 were changed in <code>row</code>.</li>
+  <li>As all indexes of <code>grid</code> point to <code>row</code>, printing <code>grid</code> basically prints <code>row</code> 10 times, giving the illusion of columns being changed.</li>
+</ul>
+
+<p>The solution to this is to create the grid a different way. Either a combination of two for-loops, or a list comprehension.</p>
+
+<pre><code># For-loops
+grid=[]
+for i in range(10):
+    grid.append([])
+    for j in range(10):
+        grid[i].append('X')
+
+# List comprehension
+grid=[['X' for _ in range(10)] for _ in range(10)]</code></pre>
+
+<p>The visualization for either of these approaches looks completely different from the earlier approach.</p>
+
+<figure>
+<img alt="There are a total of tweleve blocks - a global frame with the variable name &quot;grid&quot;. The variable name points to block representing an array of index 10. Each index of the array points to a separate block - an array of index 10 with the string &quot;X&quot; written for each index." class="dim" loading="lazy" src="/public/images/rc00/viz2.png">
+<figcaption><a href="https://pythontutor.com/render.html#code=grid%3D%5B%5B'X'%20for%20_%20in%20range%2810%29%5D%20for%20_%20in%20range%2810%29%5D&amp;cumulative=false&amp;curInstr=144&amp;heapPrimitives=nevernest&amp;mode=display&amp;origin=opt-frontend.js&amp;py=3&amp;rawInputLstJSON=%5B%5D&amp;textReferences=false" target="_blank">View on Python Tutor</a></figcaption>
+</figure>
+
+<p>Instead of one <code>row</code>, there are now 10 <code>row</code>s. Changes to one <code>row</code> won't affect the other <code>row</code>s, which is the intended behavior.</p>
+
+<p>In Python, <code>id()</code> returns different addresses for each <code>row</code>, further confirming that they're different objects.</p>
+
+<pre><code>&gt;&gt;&gt; grid=[['X' for _ in range(10)] for _ in range(10)]
+&gt;&gt;&gt; id(grid[0])
+4315575040
+&gt;&gt;&gt; id(grid[1])
+4315559744</code></pre>
+</main>
+<footer>
+<div>
+<a id="rc-ring-prev" href="https://ring.recurse.com/prev?id=28">←</a>
+<a id="rc-ring-home" data-rc-uuid="31ba89ab-ad76-4fea-a2d0-ef53d540cc81" href="https://ring.recurse.com/">RC Webring</a>
+<a id="rc-ring-next" href="https://ring.recurse.com/next?id=28">→</a>
+</div>
+</footer>
+</body>
+</html>

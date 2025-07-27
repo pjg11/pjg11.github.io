@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<link rel="stylesheet" href="/public/style.css">
+<title>Python type conversion cheatsheet - pjg1.site</title>
+</head>
+<body>
+<nav>
+<a href="/">pjg1.site</a>
+<a href="/now">Now</a>
+<a href="/contact">Contact</a>
+<a href="/feed.xml">RSS</a>
+</nav>
+<main>
+<h1>Python type conversion cheatsheet</h1>
+<p>
+<time datetime="2024-02-11 00:00:00 +0400">11 February 2024</time> •
+<a href="/tags#python">#python</a>
+</p>
+<p>The built-in functions to convert between different types in Python is something I keep forgetting and have to look up each time. So I decided to make a cheatsheet for reference. Tested on version 3.11.7.</p>
+
+<h2 id="int---hex">int &lt;-&gt; hex</h2>
+
+<p>There are two <a href="https://docs.python.org/3.11/library/functions.html">built-in functions</a> for this, <code>hex()</code> and <code>int()</code>.</p>
+
+<p><code>hex()</code> converts an integer (base 10) to a hexadecimal number (base 16). Hexadecimal numbers aren't a separate type in Python, so the resuting output is of type <code>str</code>.</p>
+
+<pre><code>&gt;&gt;&gt; hex(255)
+'0xff'</code></pre>
+
+<p>For the other way round, <code>int()</code> is called with the base set to 16. The function accepts input with and without the <code>0x</code> prefix.</p>
+
+<pre><code>&gt;&gt;&gt; int('0xff', 16)
+255
+&gt;&gt;&gt; int('ff', 16)
+255</code></pre>
+
+<p>Even typing the hex string with the <code>0x</code> prefix but without the quotes will output its integer representation.</p>
+
+<pre><code>&gt;&gt;&gt; 0xff
+255</code></pre>
+
+<h2 id="hex---bytes">hex &lt;-&gt; bytes</h2>
+
+<p>The functions are part of the <a href="https://docs.python.org/3.11/library/stdtypes.html#bytes"><code>bytes</code></a> built-in type.</p>
+
+<p><code>bytes.hex()</code> converts bytes to a hexadecimal string.</p>
+
+<pre><code>&gt;&gt;&gt; bytes.hex(b'hello')
+'68656c6c6f'</code></pre>
+
+<p><code>bytes.fromhex()</code> converts a hex string to its byte form. Unlike <code>int()</code>, this function only accepts input without the <code>0x</code> prefix.</p>
+
+<pre><code>&gt;&gt;&gt; bytes.fromhex('68656c6c6f')
+b'hello'
+&gt;&gt;&gt; bytes.fromhex('0x68656c6c6f')
+Traceback (most recent call last):
+  File "&lt;stdin&gt;", line 1, in &lt;module&gt;
+ValueError: non-hexadecimal number found in fromhex() arg at position 1</code></pre>
+
+<h2 id="int---bytes">int &lt;-&gt; bytes</h2>
+
+<p>The <code>int</code> data type has <a href="https://docs.python.org/3.11/library/stdtypes.html#additional-methods-on-integer-types">functions</a> for converting to and from bytes.</p>
+
+<p><code>int.to_bytes()</code> requires two parameters apart from the number itself.</p>
+
+<p>The first is the length of the resulting output, or the number of bytes. I can either specify a number, or use another function, <code>int.bit_length()</code> to calculate the number of bytes.</p>
+
+<pre><code>&gt;&gt;&gt; num = 5
+&gt;&gt;&gt; bin(num)
+'0b101'
+&gt;&gt;&gt; int.bit_length(num)
+3
+&gt;&gt;&gt; nbytes = (int.bit_length(num) + 7) // 8
+&gt;&gt;&gt; nbytes
+1</code></pre>
+
+<p>The next parameter is the byte order. When in doubt, default to big-endian.</p>
+
+<pre><code>&gt;&gt;&gt; int.to_bytes(num, (int.bit_length(num) + 7) // 8, 'big')
+b'\x05'
+&gt;&gt;&gt; int.to_bytes(num, 2, 'big')
+b'\x00\x05'
+&gt;&gt;&gt; int.to_bytes(num, 2, 'little')
+b'\x05\x00'</code></pre>
+
+<p>The function can also be written as <code>num.to_bytes(2, 'big')</code>, however I prefer the earlier notation as its more consistent with <code>int.from_bytes()</code>, the reverse function.</p>
+
+<pre><code>&gt;&gt;&gt; int.from_bytes(b'\x00\x05', 'big')
+5
+&gt;&gt;&gt; int.from_bytes(b'\x05\x00', 'little')
+5</code></pre>
+
+<h2 id="str---bytes">str &lt;-&gt; bytes</h2>
+
+<p>The process of translating human readable characters (string) to something
+computers can understand (bytes) is called encoding. Strings can be encoded using <a href="https://docs.python.org/3.11/library/stdtypes.html#str.encode"><code>str.encode()</code></a>. <code>utf-8</code> is the default encoding, however this can be changed.</p>
+
+<pre><code>&gt;&gt;&gt; str.encode('hello', 'utf-8')
+b'hello'
+&gt;&gt;&gt; str.encode('hello', 'utf-16')
+b'\xff\xfeh\x00e\x00l\x00l\x00o\x00'</code></pre>
+
+<p>The reverse process, i.e., decoding (converting bytes to string) is done using <a href="https://docs.python.org/3.11/library/stdtypes.html#bytes.decode"><code>bytes.decode()</code></a>.</p>
+
+<pre><code>&gt;&gt;&gt; bytes.decode(b'hello', 'utf-8')
+'hello'
+&gt;&gt;&gt; bytes.decode(b'\xff\xfeh\x00e\x00l\x00l\x00o\x00', 'utf-16')
+'hello'</code></pre>
+
+<h2 id="int---str">int &lt;-&gt; str</h2>
+
+<p>This is the one I have most confusion about, as the <code>int</code>s are one of two types:</p>
+<ul>
+  <li>ASCII characters, either individual or appended together</li>
+  <li>All characters of a string are added up as one single integer/long</li>
+</ul>
+
+<p>For ASCII characters, its two <a href="https://docs.python.org/3.11/library/functions.html">built-in functions</a> - <code>chr()</code> for number to character, and <code>ord()</code> for the opposite.</p>
+
+<pre><code>&gt;&gt;&gt; chr(65)
+'A'
+&gt;&gt;&gt; ord('A')
+65</code></pre>
+
+<p>For longer ints, the process is the same as <a href="#int--bytes">int &lt;-&gt; bytes</a>, with the additional step of encoding or decoding where needed.</p>
+
+<p>In the case of int to str, the resulting bytes are decoded.</p>
+
+<pre><code>&gt;&gt;&gt; num = 448378203247
+&gt;&gt;&gt; int.to_bytes(num, 5, 'big').decode('utf-8')
+'hello'</code></pre>
+
+<p>For the other way round, the string input is encoded before converting.</p>
+
+<pre><code>&gt;&gt;&gt; text = 'hello'
+&gt;&gt;&gt; int.from_bytes(text.encode('utf-8'), 'big')
+448378203247</code></pre>
+
+<p>The same holds true for <a href="#hex--bytes">hex &lt;-&gt; bytes</a> as well.</p>
+
+</main>
+<footer>
+<div>
+<a id="rc-ring-prev" href="https://ring.recurse.com/prev?id=28">←</a>
+<a id="rc-ring-home" data-rc-uuid="31ba89ab-ad76-4fea-a2d0-ef53d540cc81" href="https://ring.recurse.com/">RC Webring</a>
+<a id="rc-ring-next" href="https://ring.recurse.com/next?id=28">→</a>
+</div>
+</footer>
+</body>
+</html>
