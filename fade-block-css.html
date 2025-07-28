@@ -4,6 +4,28 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <link rel="stylesheet" href="/public/style.css">
+<style>
+pre.block {
+  position: relative;
+  background: var(--bg);
+  border: unset;
+}
+pre.block::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 95%;
+  right: 0;
+  background-image: linear-gradient(to right, transparent, var(--bg));
+}
+pre.block code {
+  display: block;
+  padding: 0.75rem 0;
+  overflow: auto;
+  padding-inline-end: 1.5rem;
+}
+</style>
 <title>Faded codeblocks using CSS - pjg1.site</title>
 </head>
 <body>
@@ -65,7 +87,7 @@ pre code {
 
 <p>Here's how it looks:</p>
 
-<pre><code>This is a super long string of text that appears to be faded where the text overflows.</code></pre>
+<pre class="block"><code>This is a super long string of text that appears to be faded where the text overflows.</code></pre>
 
 <p>While I've demonstrated this for codeblocks, this styling could be extended for any block element - say a paragraph within a div, or a paragraph within a blockquote.</p>
 
