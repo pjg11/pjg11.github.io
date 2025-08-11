@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -7,23 +8,14 @@
 <title>Baby's first monitoring system - pjg1.site</title>
 </head>
 <body>
-<nav>
-<a href="/">pjg1.site</a>
-<a href="/now">Now</a>
-<a href="/contact">Contact</a>
-<a href="/feed.xml">RSS</a>
-</nav>
+<header>
+<p>
+<a href="/"><code>pjg1.site</code></a><br>
+<time datetime="2025-02-17 00:00:00 +0400">17 February 2025</time>
+</p>
+</header>
 <main>
 <h1>Baby's first monitoring system</h1>
-<p>
-<time datetime="2025-02-17 00:00:00 +0400">17 February 2025</time> •
-<a href="/tags#recurse">#recurse</a>
-<a href="/tags#sysadmin">#sysadmin</a>
-</p>
-<div class="note">
-<p>This post is written during a batch at the <a href="https://www.recurse.com/scout/click?t=2ac66128b9116e0722d941ebf7e14b5a">Recurse Center</a>, a retreat for programmers.</p>
-</div>
-
 <p>Till last week, I didn't know what a monitoring system really looked like. A week later, I'm in the process of setting up one for the RC's shared computing cluster<sup id="fnref:1"><a class="footnote" href="#fn:1" rel="footnote" role="doc-noteref">1</a></sup>  which is community maintained. Here are some notes about the various tools I'm using and how they work together (<a href="#tldr">TL;DR</a>).</p>
 
 <p>I'm halfway through my second batch at RC, and one of my batch goals was to learn DevOps/SRE skills by contributing to this cluster. Having put it off for the first 5 weeks, I finally reached out to folks in the weekly meeting about the cluster, where I was recommended to look into <a href="https://prometheus.io">Prometheus</a>.</p>
@@ -118,11 +110,12 @@
 
 </main>
 <footer>
-<div>
-<a id="rc-ring-prev" href="https://ring.recurse.com/prev?id=28">←</a>
-<a id="rc-ring-home" data-rc-uuid="31ba89ab-ad76-4fea-a2d0-ef53d540cc81" href="https://ring.recurse.com/">RC Webring</a>
-<a id="rc-ring-next" href="https://ring.recurse.com/next?id=28">→</a>
-</div>
+<p>
+<a class="tag" href="/tags#recurse">#recurse</a>
+<a class="tag" href="/tags#sysadmin">#sysadmin</a>
+<br>
+last updated <time datetime="2025-07-27 00:00:00 +0400">27 July 2025</time>
+</p>
 </footer>
 </body>
 </html>

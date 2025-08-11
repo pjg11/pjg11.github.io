@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -7,23 +8,14 @@
 <title>RC00: Interesting Python behavior - pjg1.site</title>
 </head>
 <body>
-<nav>
-<a href="/">pjg1.site</a>
-<a href="/now">Now</a>
-<a href="/contact">Contact</a>
-<a href="/feed.xml">RSS</a>
-</nav>
+<header>
+<p>
+<a href="/"><code>pjg1.site</code></a><br>
+<time datetime="2023-08-10 00:00:00 +0400">10 August 2023</time>
+</p>
+</header>
 <main>
 <h1>RC00: Interesting Python behavior</h1>
-<p>
-<time datetime="2023-08-10 00:00:00 +0400">10 August 2023</time> •
-<a href="/tags#python">#python</a>
-<a href="/tags#recurse">#recurse</a>
-</p>
-<div class="note">
-<p>This post is written during a batch at the <a href="https://www.recurse.com/scout/click?t=2ac66128b9116e0722d941ebf7e14b5a">Recurse Center</a>, a retreat for programmers.</p>
-</div>
-
 <p>I attended a pair programming workshop as part of the RC orientation talks. After a brief introduction to pairing and how it works, the attendees were paired with each other to code <a href="https://en.wikipedia.org/wiki/Conway%27s_Game_of_Life">Conway's Game of Life</a> within an hour.</p>
 
 <p>My pairing partner, <a href="https://msabin.github.io">Manuel</a> and I decided to code in Python, the first step being to create a grid. For some reason, my mind came up with this line of code:</p>
@@ -134,11 +126,12 @@ grid=[['X' for _ in range(10)] for _ in range(10)]</code></pre>
 4315559744</code></pre>
 </main>
 <footer>
-<div>
-<a id="rc-ring-prev" href="https://ring.recurse.com/prev?id=28">←</a>
-<a id="rc-ring-home" data-rc-uuid="31ba89ab-ad76-4fea-a2d0-ef53d540cc81" href="https://ring.recurse.com/">RC Webring</a>
-<a id="rc-ring-next" href="https://ring.recurse.com/next?id=28">→</a>
-</div>
+<p>
+<a class="tag" href="/tags#python">#python</a>
+<a class="tag" href="/tags#recurse">#recurse</a>
+<br>
+last updated <time datetime="2025-07-27 00:00:00 +0400">27 July 2025</time>
+</p>
 </footer>
 </body>
 </html>

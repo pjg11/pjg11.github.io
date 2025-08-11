@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -7,20 +8,14 @@
 <title>Schedule Posts in Jekyll - pjg1.site</title>
 </head>
 <body>
-<nav>
-<a href="/">pjg1.site</a>
-<a href="/now">Now</a>
-<a href="/contact">Contact</a>
-<a href="/feed.xml">RSS</a>
-</nav>
+<header>
+<p>
+<a href="/"><code>pjg1.site</code></a><br>
+<time datetime="2023-07-22 00:00:00 +0400">22 July 2023</time>
+</p>
+</header>
 <main>
 <h1>Schedule Posts in Jekyll</h1>
-<p>
-<time datetime="2023-07-22 00:00:00 +0400">22 July 2023</time> •
-<a href="/tags#blogging">#blogging</a>
-<a href="/tags#jekyll">#jekyll</a>
-<a href="/tags#scripting">#scripting</a>
-</p>
 <p>My current blogging setup consists of me publishing a post shortly after I've finished typing and proofreading. While this is a straightforward and easy process, it also makes it easy for me to procrastinate on posts for days on end.</p>
 
 <p>As a way to introduce some form of accountability, I thought having the option to schedule a post in advance might be a good idea.</p>
@@ -196,11 +191,13 @@ reattach-to-user-namespace osascript -e \
 
 </main>
 <footer>
-<div>
-<a id="rc-ring-prev" href="https://ring.recurse.com/prev?id=28">←</a>
-<a id="rc-ring-home" data-rc-uuid="31ba89ab-ad76-4fea-a2d0-ef53d540cc81" href="https://ring.recurse.com/">RC Webring</a>
-<a id="rc-ring-next" href="https://ring.recurse.com/next?id=28">→</a>
-</div>
+<p>
+<a class="tag" href="/tags#blogging">#blogging</a>
+<a class="tag" href="/tags#jekyll">#jekyll</a>
+<a class="tag" href="/tags#scripting">#scripting</a>
+<br>
+last updated <time datetime="2025-01-12 00:00:00 +0400">12 January 2025</time>
+</p>
 </footer>
 </body>
 </html>

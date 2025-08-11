@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -7,24 +8,14 @@
 <title>How does a Linux machine connect to the internet, really? - pjg1.site</title>
 </head>
 <body>
-<nav>
-<a href="/">pjg1.site</a>
-<a href="/now">Now</a>
-<a href="/contact">Contact</a>
-<a href="/feed.xml">RSS</a>
-</nav>
+<header>
+<p>
+<a href="/"><code>pjg1.site</code></a><br>
+<time datetime="2025-02-09 00:00:00 +0400">9 February 2025</time>
+</p>
+</header>
 <main>
 <h1>How does a Linux machine connect to the internet, really?</h1>
-<p>
-<time datetime="2025-02-09 00:00:00 +0400">9 February 2025</time> •
-<a href="/tags#linux">#linux</a>
-<a href="/tags#recurse">#recurse</a>
-<a href="/tags#networking">#networking</a>
-</p>
-<div class="note">
-<p>This post is written during a batch at the <a href="https://www.recurse.com/scout/click?t=2ac66128b9116e0722d941ebf7e14b5a">Recurse Center</a>, a retreat for programmers.</p>
-</div>
-
 <p>Recently, I was brainstorming networking project ideas, I got curious on what goes behind connecting to the internet, and if I could do it from scratch.</p>
 
 <p>I'm delighted to report that the experiment was successful, and I thought of sharing it here! I've tested this on Ubuntu, but I think it should work on any Linux distribution. If not, <a href="mailto:piya@pjg1.site">let me know</a>.</p>
@@ -284,11 +275,13 @@ bound to 192.168.100.128 -- renewal in 271244 seconds.</code></pre>
 
 </main>
 <footer>
-<div>
-<a id="rc-ring-prev" href="https://ring.recurse.com/prev?id=28">←</a>
-<a id="rc-ring-home" data-rc-uuid="31ba89ab-ad76-4fea-a2d0-ef53d540cc81" href="https://ring.recurse.com/">RC Webring</a>
-<a id="rc-ring-next" href="https://ring.recurse.com/next?id=28">→</a>
-</div>
+<p>
+<a class="tag" href="/tags#linux">#linux</a>
+<a class="tag" href="/tags#recurse">#recurse</a>
+<a class="tag" href="/tags#networking">#networking</a>
+<br>
+last updated <time datetime="2025-07-27 00:00:00 +0400">27 July 2025</time>
+</p>
 </footer>
 </body>
 </html>

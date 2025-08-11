@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -7,24 +8,14 @@
 <title>RC03: The Curious Case of the Inconsistent Byte Order - pjg1.site</title>
 </head>
 <body>
-<nav>
-<a href="/">pjg1.site</a>
-<a href="/now">Now</a>
-<a href="/contact">Contact</a>
-<a href="/feed.xml">RSS</a>
-</nav>
+<header>
+<p>
+<a href="/"><code>pjg1.site</code></a><br>
+<time datetime="2023-09-18 00:00:00 +0400">18 September 2023</time>
+</p>
+</header>
 <main>
 <h1>RC03: The Curious Case of the Inconsistent Byte Order</h1>
-<p>
-<time datetime="2023-09-18 00:00:00 +0400">18 September 2023</time> •
-<a href="/tags#c">#c</a>
-<a href="/tags#recurse">#recurse</a>
-<a href="/tags#networking">#networking</a>
-</p>
-<div class="note">
-<p>This post is written during a batch at the <a href="https://www.recurse.com/scout/click?t=2ac66128b9116e0722d941ebf7e14b5a">Recurse Center</a>, a retreat for programmers.</p>
-</div>
-
 <p>This week, I started working on building a <a href="https://github.com/pjg11/tuntcp">TCP/IP stack from scratch in C</a>.</p>
 
 <p>Part of the IP implementation is calculating the checksum, which requires splitting the IP header into 16-bit chunks. I'll be using these hex bytes from an IP packet as an example</p>
@@ -259,11 +250,13 @@ back into memory will swap the sum back into network byte order.</p>
 
 </main>
 <footer>
-<div>
-<a id="rc-ring-prev" href="https://ring.recurse.com/prev?id=28">←</a>
-<a id="rc-ring-home" data-rc-uuid="31ba89ab-ad76-4fea-a2d0-ef53d540cc81" href="https://ring.recurse.com/">RC Webring</a>
-<a id="rc-ring-next" href="https://ring.recurse.com/next?id=28">→</a>
-</div>
+<p>
+<a class="tag" href="/tags#c">#c</a>
+<a class="tag" href="/tags#recurse">#recurse</a>
+<a class="tag" href="/tags#networking">#networking</a>
+<br>
+last updated <time datetime="2025-07-27 00:00:00 +0400">27 July 2025</time>
+</p>
 </footer>
 </body>
 </html>

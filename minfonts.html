@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -7,19 +8,14 @@
 <title>Minified versions of fonts - pjg1.site</title>
 </head>
 <body>
-<nav>
-<a href="/">pjg1.site</a>
-<a href="/now">Now</a>
-<a href="/contact">Contact</a>
-<a href="/feed.xml">RSS</a>
-</nav>
+<header>
+<p>
+<a href="/"><code>pjg1.site</code></a><br>
+<time datetime="2024-03-30 00:00:00 +0400">30 March 2024</time>
+</p>
+</header>
 <main>
 <h1>Minified versions of fonts</h1>
-<p>
-<time datetime="2024-03-30 00:00:00 +0400">30 March 2024</time> •
-<a href="/tags#blogging">#blogging</a>
-<a href="/tags#font">#font</a>
-</p>
 <p>While looking for custom fonts for this website, I came across <a href="https://github.com/joelesko/minlo-font/tree/main">Minlo</a>, a minified version of the Apple system font Menlo.</p>
 
 <p>I first thought it was made smaller by some cool compression technique. While that is true (converting to WOFF2 leads to smaller file sizes), I found that it even contains lesser characters (glyphs) than in a regular font file.</p>
@@ -105,11 +101,12 @@ $ du -Ahs Inter-Regular.otf Inter-Regular.subset.woff2
 
 </main>
 <footer>
-<div>
-<a id="rc-ring-prev" href="https://ring.recurse.com/prev?id=28">←</a>
-<a id="rc-ring-home" data-rc-uuid="31ba89ab-ad76-4fea-a2d0-ef53d540cc81" href="https://ring.recurse.com/">RC Webring</a>
-<a id="rc-ring-next" href="https://ring.recurse.com/next?id=28">→</a>
-</div>
+<p>
+<a class="tag" href="/tags#blogging">#blogging</a>
+<a class="tag" href="/tags#font">#font</a>
+<br>
+last updated <time datetime="2024-03-30 00:00:00 +0400">30 March 2024</time>
+</p>
 </footer>
 </body>
 </html>

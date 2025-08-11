@@ -1,137 +1,28 @@
-:root {
-    color-scheme: light dark;
-    --border: #888;
-    --block: #f2f2f2;
-    --block2: #ccc;
-    --fg: black;
-    --bg: white;
-}
-@media(prefers-color-scheme: dark) {
-    :root {
-        --border: #999;
-        --block: #2e2e2e;
-        --block2: #777;
-        --fg: white;
-        --bg: #1e1e1e;
-    }
-}
-html {
-    font: 1rem/1.33 system-ui;
-    background: var(--bg);
-    color: var(--fg);
-}
-body > * {
-    max-width: 65ch;
-    margin: 1rem auto;
-}
-main {
-    padding: 1.5rem;
-    border: thin solid var(--border);
-    box-sizing: border-box;
-}
-img {
-    width: 100%;
-    height: auto
-}
-code, kbd {
-    font-size: 92.5%;
-    font-family: SF Mono, ui-monospace, monospace;
-}
-pre {
-	border: thin solid var(--border);
-}
-pre code {
-    display: block;
-    overflow: auto;
-    padding: 0.5rem;
-}
-blockquote {
-    padding-left: 1ch;
-    border-left: 0.25rem solid var(--block2);
-    margin-top: 1.25rem;
-    margin-bottom: 1.25rem;
-}
-div.note {
-    background: var(--block);
-    padding: 0.1rem 0.75rem;
-    border-left: 0;
-    border-right: 0;
-    margin: 1rem 0;
-}
-figure {
-    margin: 0
-}
-img {
-    width: 100%;
-    height: auto;
-}
-figcaption {
-    text-align: center
-}
-hr {
-	border-top: thin solid var(--border);
-	border-bottom: 0;
-}
-h1 {
-    font-size: 135%;
-    margin-top: 0.5rem;
-    border-bottom: thin solid var(--border);
-    padding-bottom: 0.25rem;
-    margin-bottom: 0.5rem;
-	text-wrap: balance
-}
-h1 + p {
-    color: var(--border);
-    margin-top: 0;
-    margin-bottom: 1.5rem;
-    display: block;
-}
-h1 + p a {
-    color: inherit;
-}
-h2 {
-    font-size: 115%;
-    margin-top: 1.5rem;
-}
-h3 {
-    font-size: 100%
-}
-sup {
-    line-height: 0
-}
-nav, footer {
-    display: flex;
-    gap: 0.75rem;
-    justify-content: center;
-	align-items: center
-}
-nav a, footer a {
-    border: thin solid var(--border);
-    color: inherit;
-    padding: 0.25rem 0.5rem;
-    text-decoration: none;
-}
-nav a:hover, footer a:hover {
-    background: var(--block);
-}
-li {
-    margin-bottom: 0.1rem;
-
-}
-ul.posts {
-    padding: 0;
-    list-style-type: none;
-}
-ul.posts li {
-	margin-bottom: 0.25rem
-}
-ul.posts time {
-    float: right;
-    color: var(--border);
-}
-ul.posts a:visited {
-    color: VisitedText
-}
-a {
-    color: LinkText
-}
+* { box-sizing: border-box; }
+:root { --bg: #1e1e1e; --fg: #eee; --ac: #aaa; --br: #777; --bl: #2e2e2e; --mg: 1.4rem; }
+html { font: clamp(15px, 2.5vw, 17px)/1.4 Inter, system-ui, sans-serif; }
+body { background: var(--bg); color: var(--fg); margin: 0 auto; max-width: 640px; padding: 1rem; }
+body > * { margin: 2rem 0 }
+main > * { margin: var(--mg) 0 }
+pre, code, kbd { font-family: "SF Mono", ui-monospace, monospace; font-size-adjust: 0.5 }
+pre code { font-size: 100%; display: block; background: var(--bl); padding: 0.6rem; overflow: auto; line-height: 1.33 }
+figure { margin: 0px; }
+img { width: 100%; }
+table { width: 100%; border-collapse: collapse; }
+td, th { border: thin solid var(--br); }
+blockquote { border-left: solid var(--br); padding: 0 0.6rem; }
+blockquote > :first-child, div.note > :first-child { margin-top: 0 }
+blockquote > :last-child, div.note > :last-child { margin-bottom: 0 }
+blockquote pre { white-space: pre-wrap }
+sup { line-height: 0; }
+a { color: cornflowerblue; text-underline-offset: 1px }
+main a:visited { color: inherit }
+a:hover { text-decoration: none }
+h1 { font-size: 160%; margin: 0; line-height: 1.3; text-wrap: balance }
+h2 { font-size: 130%; margin: 1.6rem 0 -0.5rem }
+h3 { font-size: 110%; margin: 1.33rem 0 -0.5rem }
+ul { list-style: square; }
+ul.posts { list-style: none; padding: 0px; }
+ul.posts li { margin-bottom: 0.25rem; }
+header, footer { color: var(--ac) }
+time, a.tag, header a { color: var(--ac) }
